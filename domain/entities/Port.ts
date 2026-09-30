@@ -7,5 +7,6 @@ export class Port {
     readonly user: string,
     readonly protocol: Protocol,
     readonly address: string,
+    readonly cwd: string,
   ) {}
 }

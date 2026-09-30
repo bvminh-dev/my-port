@@ -234,6 +234,38 @@ h1 {
   border-bottom: none;
 }
 
+.port-cwd {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs, 4px);
+  max-width: 200px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+
+.port-cwd span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  padding: 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-body-mid);
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.copy-btn:hover {
+  color: var(--color-ink);
+  background-color: var(--color-canvas-soft);
+}
+
 /* Badge */
 .badge {
   display: inline-block;

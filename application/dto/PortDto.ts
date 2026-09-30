@@ -4,4 +4,6 @@ export interface PortDto {
   user: string;
   protocol: string;
   address: string;
+  cwd: string;
+  mine: boolean;
 }

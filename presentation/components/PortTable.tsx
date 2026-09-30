@@ -5,7 +5,7 @@ import type { PortDto } from "@/application/dto/PortDto";
 import { listPortsAction, killPortAction } from "@/app/actions";
 import { Button, Badge, Card, SkeletonRow, EmptyState, useToast } from "./ui";
 
-type SortKey = "address" | "protocol" | "pid" | "command" | "user";
+type SortKey = "address" | "protocol" | "pid" | "command" | "cwd" | "user";
 type SortDir = "asc" | "desc";
 
 const COLUMNS: { key: SortKey; label: string }[] = [
@@ -13,6 +13,7 @@ const COLUMNS: { key: SortKey; label: string }[] = [
   { key: "protocol", label: "Giao thức" },
   { key: "pid", label: "PID" },
   { key: "command", label: "Tiến trình" },
+  { key: "cwd", label: "Thư mục" },
   { key: "user", label: "User" },
 ];
 
@@ -31,6 +32,7 @@ export function PortTable({ initialPorts }: { initialPorts: PortDto[] }) {
 
   const [search, setSearch] = useState("");
   const [protocolFilter, setProtocolFilter] = useState<"all" | "TCP" | "UDP">("all");
+  const [scope, setScope] = useState<"mine" | "all">("mine");
   const [sortKey, setSortKey] = useState<SortKey>("pid");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
@@ -46,11 +48,13 @@ export function PortTable({ initialPorts }: { initialPorts: PortDto[] }) {
   const visiblePorts = useMemo(() => {
     const q = search.trim().toLowerCase();
     const filtered = ports.filter((p) => {
+      if (scope === "mine" && !p.mine) return false;
       if (protocolFilter !== "all" && p.protocol !== protocolFilter) return false;
       if (!q) return true;
       return (
         p.address.toLowerCase().includes(q) ||
         p.command.toLowerCase().includes(q) ||
+        p.cwd.toLowerCase().includes(q) ||
         p.user.toLowerCase().includes(q) ||
         String(p.pid).includes(q)
       );
@@ -61,7 +65,7 @@ export function PortTable({ initialPorts }: { initialPorts: PortDto[] }) {
       if (sortKey === "pid") return (a.pid - b.pid) * dir;
       return a[sortKey].localeCompare(b[sortKey]) * dir;
     });
-  }, [ports, search, protocolFilter, sortKey, sortDir]);
+  }, [ports, search, scope, protocolFilter, sortKey, sortDir]);
 
   function refresh() {
     startTransition(async () => {
@@ -73,6 +77,24 @@ export function PortTable({ initialPorts }: { initialPorts: PortDto[] }) {
         showToast(res.error ?? "Không tải được danh sách port", "error");
       }
     });
+  }
+
+  async function copyPath(path: string) {
+    try {
+      // navigator.clipboard is undefined outside secure contexts (e.g. opened via LAN IP)
+      if (navigator.clipboard) await navigator.clipboard.writeText(path);
+      else {
+        const ta = Object.assign(document.createElement("textarea"), { value: path });
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand("copy");
+        ta.remove();
+        if (!ok) throw new Error("copy failed");
+      }
+      showToast("Đã sao chép đường dẫn", "success");
+    } catch {
+      showToast("Không thể sao chép đường dẫn", "error");
+    }
   }
 
   function handleKill(pid: number) {
@@ -97,10 +119,18 @@ export function PortTable({ initialPorts }: { initialPorts: PortDto[] }) {
         <input
           type="search"
           className="port-search"
-          placeholder="Tìm theo địa chỉ, tiến trình, user, pid..."
+          placeholder="Tìm theo địa chỉ, tiến trình, thư mục, user, pid..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        <select
+          className="port-filter"
+          value={scope}
+          onChange={(e) => setScope(e.target.value as "mine" | "all")}
+        >
+          <option value="mine">Của tôi</option>
+          <option value="all">Tất cả tiến trình</option>
+        </select>
         <select
           className="port-filter"
           value={protocolFilter}
@@ -126,7 +156,7 @@ export function PortTable({ initialPorts }: { initialPorts: PortDto[] }) {
         </thead>
         <tbody>
           {isPending && ports.length === 0
-            ? Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} />)
+            ? Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} columns={7} />)
             : visiblePorts.map((p, i) => (
                 <tr key={`${p.pid}-${p.address}-${i}`}>
                   <td>{p.address}</td>
@@ -135,6 +165,19 @@ export function PortTable({ initialPorts }: { initialPorts: PortDto[] }) {
                   </td>
                   <td>{p.pid}</td>
                   <td>{p.command}</td>
+                  <td>
+                    <div className="port-cwd" title={p.cwd}>
+                      <span>{p.cwd.split("/").filter(Boolean).pop() ?? (p.cwd || "—")}</span>
+                      {p.cwd && (
+                        <button type="button" className="copy-btn" aria-label="Sao chép đường dẫn" onClick={() => copyPath(p.cwd)}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                            <rect x="9" y="9" width="13" height="13" rx="2" />
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </td>
                   <td>{p.user}</td>
                   <td>
                     <div className="port-actions">
@@ -157,7 +200,7 @@ export function PortTable({ initialPorts }: { initialPorts: PortDto[] }) {
         <EmptyState title="Không có port nào đang mở" description="Nhấn Làm mới để kiểm tra lại." />
       )}
       {!isPending && ports.length > 0 && visiblePorts.length === 0 && (
-        <EmptyState title="Không tìm thấy port phù hợp" description="Thử đổi từ khóa hoặc bộ lọc giao thức." />
+        <EmptyState title="Không tìm thấy port phù hợp" description="Thử đổi từ khóa, bộ lọc giao thức hoặc chọn “Tất cả tiến trình”." />
       )}
     </Card>
   );

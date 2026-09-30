@@ -1,3 +1,4 @@
+import { userInfo } from "node:os";
 import { PortRepository } from "@/domain/repositories/PortRepository";
 import { ProcessId } from "@/domain/value-objects/ProcessId";
 import { PortDto } from "../dto/PortDto";
@@ -20,6 +21,10 @@ export class PortManagementService {
       user: p.user,
       protocol: p.protocol,
       address: p.address,
+      cwd: p.cwd,
+      // ponytail: heuristic — own user (lsof truncates long names, hence startsWith) and a real project dir;
+      // desktop apps/daemons run as the user too but sit in "/".
+      mine: userInfo().username.startsWith(p.user) && p.cwd !== "" && p.cwd !== "/",
     }));
   }
 
