@@ -310,3 +310,8 @@ h1 {
   font-size: 14px;
   min-width: 240px;
 }
+
+.port-actions {
+  display: flex;
+  gap: 8px;
+}

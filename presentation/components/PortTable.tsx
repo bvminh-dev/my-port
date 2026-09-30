@@ -16,6 +16,14 @@ const COLUMNS: { key: SortKey; label: string }[] = [
   { key: "user", label: "User" },
 ];
 
+// "*:3000" / "[::1]:3000" / "127.0.0.1:3000" -> "http://localhost:3000" (loopback hosts stay as-is)
+function toUrl(address: string) {
+  const i = address.lastIndexOf(":");
+  const host = address.slice(0, i).replace(/^\[|\]$/g, "");
+  const isWildcard = host === "*" || host === "::" || host === "0.0.0.0";
+  return `http://${isWildcard || host === "::1" ? "localhost" : host}:${address.slice(i + 1)}`;
+}
+
 export function PortTable({ initialPorts }: { initialPorts: PortDto[] }) {
   const [ports, setPorts] = useState(initialPorts);
   const [isPending, startTransition] = useTransition();
@@ -129,9 +137,16 @@ export function PortTable({ initialPorts }: { initialPorts: PortDto[] }) {
                   <td>{p.command}</td>
                   <td>{p.user}</td>
                   <td>
-                    <Button variant="tertiary" onClick={() => handleKill(p.pid)}>
-                      Kill
-                    </Button>
+                    <div className="port-actions">
+                      {p.protocol === "TCP" && (
+                        <Button variant="secondary" onClick={() => window.open(toUrl(p.address), "_blank", "noopener")}>
+                          Open
+                        </Button>
+                      )}
+                      <Button variant="tertiary" onClick={() => handleKill(p.pid)}>
+                        Kill
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
